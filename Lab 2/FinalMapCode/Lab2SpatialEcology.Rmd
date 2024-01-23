@@ -159,7 +159,7 @@ supportingFig
 ```{r}
 plot_grid(zoomedIn, supportingFig, rel_widths=c(0.7, 1))
 ```
-#This final figure is indicative of Neely Henry Reservoir which is the reservoir I am conducting my Master's work on. On the left is a map showing displaying the .shp file of my study reservoir (illustrated in blue) and the landcover of the surrounding area. Neely Henry is very urbanized at its upper end, whereas the lower end is much more forested. Additionally, the right panel of the finished map shows Neely Henry's relative location within the state of Alabama. It is a roughly 15,000 acre reservoir located in Northeast Alabama near the city of Gadsden, Alabama. 
+#Neely Henry (left panel) is a roughly 15,000 acre reservoir located on the Coosa River. I am tracking two difference species of fish on this reservoir over the course of two years. I chose to include a shapefile I created of the lake and landcover use of the surrounding area in my final map. It is interesting to see how urbanized the North end of the lake is near Gadsden, Alabama, compared to the southern part of the lake which is more heavily forested. Additionally, the right panel shows Neely Henry's location relative to the rest of the state of Alabama.
 
 
 
