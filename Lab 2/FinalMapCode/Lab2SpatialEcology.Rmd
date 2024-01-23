@@ -1,0 +1,166 @@
+---
+title: "Marcus Prull Lab 2"
+output: html_notebook
+---
+
+#Loading necessary packages
+```{r}
+require(tidyverse)
+require(sf)
+require(tigris)
+require(geodata)
+require(terra)
+require(colorspace)
+require(tidyterra)
+require(ggnewscale)
+require(cowplot)
+require(FedData)
+```
+
+#Loading in necessary study area shapefile
+```{r}
+Neely = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/Lab%202/NeelyData/FINAL.shp") 
+```
+
+#Creating bounding box around study area
+```{r}
+
+studyArea = st_bbox(Neely)
+studyArea
+
+studyArea = studyArea + c(-2000, -2000, 2000, 2000)
+studyArea
+
+studyArea = st_as_sfc(studyArea)
+
+plot(studyArea)
+```
+
+#Obtaining state of Alabama shapefile for zoomed out map
+```{r}
+alabama = states() %>% 
+  filter(NAME=='Alabama')
+
+plot(st_geometry(alabama))
+
+st_crs(alabama)$proj4string
+```
+
+#Transforming the Alabama coordinate system to match that of my study area shapefile
+```{r}
+alabama = st_transform(alabama, st_crs(studyArea))
+```
+
+#Plot zoomed out map of study area 
+```{r}
+plot(st_geometry(alabama))
+plot(studyArea, col='red', add=T)
+```
+
+#Zoomed in map of the reservoir
+```{r}
+plot(studyArea)
+plot(Neely,add=T)
+```
+
+#Obtaining landcover data for the area surrounding Neely Henry
+```{r}
+NeelyLC=get_nlcd(template=studyArea,year=2019,
+                 dataset="landcover",
+                 label="Neely Henry",
+                 landmass="L48")
+```
+
+#Transforming shapefile of Neely to match the LC raster
+```{r}
+Neely = st_transform(Neely, st_crs(NeelyLC))
+```
+
+#Plotting my shapefile in addition to the landcover data.
+```{r}
+
+plot(NeelyLC)
+plot(Neely, add=T)
+
+```
+
+#Creating zoomed out map
+```{r}
+zoomedOut = ggplot()+
+  geom_sf(data = alabama)+
+  geom_sf(data = studyArea, fill=NA, color='red')
+
+zoomedOut
+```
+
+#Cleaning up zoomed out map
+```{r}
+zoomedOut = zoomedOut +
+  theme_bw()+ #Gets rid of most of the colors
+  theme(panel.grid=element_blank(), #Removes the gridlines
+        axis.text=element_blank(), #Removes the axis text
+        axis.ticks=element_blank(), #Removes the axis tick marks
+        panel.border=element_blank()) #Removes the frame around the graph
+
+zoomedOut
+```
+```{r}
+
+zoomedIn = ggplot()+
+  geom_spatraster(data = NeelyLC)
+
+zoomedIn
+```
+
+#Starting to make the nice zoomed in map
+```{r}
+
+zoomedIn = ggplot()+
+  geom_spatraster(data = NeelyLC)+
+  geom_sf(data = Neely, fill="blue", color='black')
+
+zoomedIn
+```
+
+#Cleaning up the zoomedIn map
+```{r}
+zoomedIn = zoomedIn+
+  new_scale_fill()+
+  theme_bw()+
+  theme(panel.grid=element_blank(),
+        axis.text.x=element_text(angle=90, vjust=0.5, size=6))
+
+zoomedIn
+  
+```
+#Using cowplot to put my two maps together
+```{r}
+plot_grid(zoomedIn, zoomedOut)
+```
+#Taking out legend
+```{r}
+legend = get_legend(zoomedIn)
+ggdraw(legend)
+```
+#Creating an object for the legened
+```{r}
+legend = get_legend(zoomedIn+theme(legend.direction='vertical'))
+ggdraw(legend)
+
+zoomedIn = zoomedIn + theme(legend.position='none')
+```
+#Adding the legend and zoomedOut maps to the final map
+```{r}
+supportingFig = plot_grid(ggdraw(legend), zoomedOut, ncol=2, rel_heights = c(1, 1))
+
+supportingFig
+```
+#Adding my zoomedIn map to the legend and zoomedOut map
+```{r}
+plot_grid(zoomedIn, supportingFig, rel_widths=c(0.7, 1))
+```
+#This final figure is indicative of Neely Henry Reservoir which is the reservoir I am conducting my Master's work on. On the left is a map showing displaying the .shp file of my study reservoir (illustrated in blue) and the landcover of the surrounding area. Neely Henry is very urbanized at its upper end, whereas the lower end is much more forested. Additionally, the right panel of the finished map shows Neely Henry's relative location within the state of Alabama. It is a roughly 15,000 acre reservoir located in Northeast Alabama near the city of Gadsden, Alabama. 
+
+
+
+
