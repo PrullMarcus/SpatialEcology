@@ -164,3 +164,6 @@ plot_grid(zoomedIn, supportingFig, rel_widths=c(0.7, 1))
 
 
 
+# Grade
+
+$\color{red}{\text{Great stuff, Marcus.}}$
