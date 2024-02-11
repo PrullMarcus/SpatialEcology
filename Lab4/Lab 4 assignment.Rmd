@@ -104,6 +104,9 @@ plot(forest)
 
 It appears that there are several redundancies in the measurements we calculated with several of them being highly correlated with each other. For example, core area and area had a correlation value of 1. Pretty much every metric had at least one other metric that it is highly correlated with. Because some of these are so highly correlated it probably isn't necessary or practical to calculate all of these for a given land area. It might be more useful to pick out a few that are of particular interest to the research question to avoid unnecessary redundancy in calculated metrics.  
 
+$\color{red}{\text{Awesome. +4}}$
+
+
 ## Challenge 2 (4 points)
 
 **In our lab, we used the 8-direction or "queen" rule to delineate patches. Using the nlcdSimple raster we created, explore the differences in patch characteristics if you were to use the 4-direction or "rook" rule for delineating patches. Calculate the following class-level metrics for forest cover for both the queen and rook patch delineation rules: number of patches, mean patch size, standard deviation in patch size, nearest-neighbor distance, and total edge length. What patterns do you notice? When might it be appropriate to use one rule vs. the other?**
@@ -139,6 +142,9 @@ It appears that there are several redundancies in the measurements we calculated
 ```
 
 The mean patch size, std dev in patch size, and nearest neighbor distance were all lower for the direction=4 method. However, the direction=4 method had a substantially higher amount of patches (67 compared to 49) which is unsurprising. What did surprise me though is that the total edge length remained the same between the two methods. It might be more appropriate to use the direction=4 method to model species patchiness for individuals who's range of movement is really small. Less movement/small home-range may result in more patches/isolation of the given species. Conversely, for species that can readily move and don't have a very small range, the directions=8 might be a more appropriate technique. These species are actively capable of moving enough to connect to other areas in any direction, whereas species who don't move a lot may be isolated. Additionally, some species may be more prone to avoid edges of of habitat so a directions=4 may be more appropriate. A species that doesn't avoid edges may be better connected which would result in less patches and directions=8 would be more appropriate. 
+
+$\color{red}{\text{Great. +4}}$
+
 
 ## Challenge 3 (4 points)
 
@@ -241,6 +247,9 @@ lsm_l_shei(nlcdSimple2001)#0.7236833
 lsm_l_shei(nlcdSimple2019)#0.7482231
 ```
 It appears that the landscape has become more diverse and more even according to the Shannon index calculations. This is likely due to the fact that in 2001 the landscape was VERY dominated by forest and open and grassland were small in comparison to their values in 2019. Their increase and subsequent decrease in forest cover on the landscape has made the area much more even as the proportion of area in each class has become more equally distributed. Additionally, because of the increase in the lesser classes it has made the landscape much more diverse than previously in 2001. 
+
+$\color{red}{\text{Yes! +4}}$
+
 
 ## Challenge 4 (4 points)
 
@@ -412,6 +421,9 @@ plot(mylistfiltered3$MeanArea.value~mylistfiltered3$threshold,ylab="Mean Forest 
 ```
 
 I used these three metrics to try and describe the increasing prevalence of forest area as the threshold changed. The number of patches increased at first as more forest patches were added to the mostly bare landscape but then quickly decreased as patches began to consume one another as more and more forest cover was added. To no surprise, the core area of these patches as well as the mean size of forest patches increased quickly as patches began to swallow each other up around the 60-70% threshold levels. 
+
+$\color{red}{\text{Excellent. +4}}$
+
 
 ## Challenge 5 (4 points)
 
@@ -603,3 +615,5 @@ The landscape appears to become more and more clumpy as the H parameter is incre
   plot(mylistfiltered6$MPA_Ratio.value~mylistfiltered6$H,ylab="Mean Perimeter-Area Ratio",xlab="H")
 ```
 I chose to look at the clumpiness index, euclidean distance (nearest neighbor), and MPA (mean-perimeter-area) ratios for my three metrics. Clumpiness increased at a steady rate as H increased. H is essentially the clumpiness parameter of the random generation so this is largely unsurprising. Secondly, I chose Euclidean distance which also increased as H increased (except for a slight dip at H=0.8). This is largely due to the patches becoming more clumped with more blank space between them. Thus, it is farther distance to the next closest patch (aka nearest neighbor) because many of the intermediate patches have been lumped into the bigger patches. Finally, the MPA pretty steadily decreased as the H value increased. This is likely a product of the patches becoming larger in size resulting in surface areas that increase at a faster rate than the perimeter.   
+
+$\color{red}{\text{Excellent work, Marcus! +4}}$
