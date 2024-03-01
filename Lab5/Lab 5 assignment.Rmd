@@ -32,6 +32,9 @@ plot(simDist)
 
 The expected number of points would be 100 points.The lamda argument specifies the number of points per unit area of the window. Our window is 100*100, which we then multiply by the lamda value of 0.01 which equals 100 points. Our specific simulation had 93 points in the window which is slightly lower than expected. 
 
+$\color{red}{\text{Perfect. +3}}$
+
+
 # Challenge 2 (3 points)
 
 Verify that there no linear or quadratic pattern in the distribution of your organisms using fitted Poisson process models. Show the outcome of this analysis and explain your conclusion.
@@ -58,6 +61,9 @@ plot(simDist, add=T)
 ```
 
 I fitted a homogenous, linear, and quadratic model to the simulated point distribution. THe homogenous model had the most support (the lowest AIC) indicating that there is likely no significant evidence of linear or quadratic patterning in the distribution of our simulated organisms. 
+
+$\color{red}{\text{Nice. +3}}$
+
 
 # Challenge 3 (14 points)
 
@@ -194,6 +200,7 @@ Ripley's K didn't really show us too much. Both critters roughly follow what was
 Given what I found out through this analysis, I would guess that Critter 1 is the prey species. The fact that critter 1s points were distributed significantly differently from what would be randomly expected whereas critter 2 was not is a important detail. I would expect a prey species to be congregated in small areas (clumped) as they get chased by predators and thus not have a random distribution across the landscape which is consistent with what I found for Critter 1.  Critter 2, had a roughly random distribution which is what I would probably expect from a predator that isn't getting chased down into small areas. A predator can roam more freely and thus more random. 
 
 
+$\color{red}{\text{Excellent work, Marcus. +14}}$
 
 
 
