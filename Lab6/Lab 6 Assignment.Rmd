@@ -35,6 +35,9 @@ ggplot(vaneMatrix, aes(x=x, y=y, color=meanBee))+
 
 Yes, it does appear that there might be some spatial dependence in the bee data. 
 
+$\color{red}{\text{Good. +2}}$
+
+
 # Challenge 2 (3 points)
 
 Empirically test for evidence of spatial dependence in bee abundance by first building a corelogram, then building a semi-variogram. Be sure to provide an envelope for assessing whether the values in each figure are statistically different from what would be expected if the bee values were randomly distributed. Describe the patterns you see, and your interpretation with regards to the spatial dependence in mean bee abundance. Be sure to identify the maximum distance at which you should interpret your figures (2/3 of the maximum distance between points).
@@ -81,6 +84,9 @@ ggplot(tmp, aes(x=dist.class, y=coef))+
   plot(empGeor, envelope=empEnv)
 ```
 The maximum distance we should interpret our figures is 2/3 of the maximum distance between points. This would be right around 90 m. According to the correlogram we had significant spatial dependence for all distance classes less than 90 m except 2. The variogram, however, showed significant spatial dependence at a lesser rate, with the groups deemed significant being roughly 20 and less and 80 and higher. However, no matter how you look at it, both graphs did show signs of spatial dependence in mean bee abundance for our data. 
+
+$\color{red}{\text{Specifically, there was positive spatial dependence at short distances and negative dependence at intermediate distances. +2}}$
+
 
 
 # Challenge 3 (4 points)
@@ -138,6 +144,7 @@ ggplot(tmp2, aes(x=dist.class, y=coef))+
 ```
 The model estimated intercept was identical to the bee abundance averaged across all sites. These figures (the newly created correlogram and variogram) look identical to the correlogram and variogram produced for the raw data. The only thing that looks a little different is the envelopes for the variograms. 
 
+$\color{red}{\text{Perfect. +4}}$
 
 
 
@@ -155,6 +162,9 @@ meanFlower15m=focal(floral,w=15,fun="mean")
 plot(meanFlower15m)
 points(x = vaneMatrix$x,y=vaneMatrix$y)
 ```
+
+$\color{red}{\text{Excellent. +4}}$
+
 
 # Challenge 5 (4 points)
 
@@ -199,7 +209,7 @@ ggplot(tmp3, aes(x=dist.class, y=coef))+
   #Semi-variogram with envelope
 
   #Creating geoR object
-  geoBee_resids2 = as.geodata(dat)
+  geoBee_resids2 = as.geodata(dat[,c(2,3,6)]) # I had to edit this line
   
   #Building the variogram
   empGeor_resids2 = variog(geoBee_resids2, max.dist=maxDist,
@@ -213,8 +223,14 @@ ggplot(tmp3, aes(x=dist.class, y=coef))+
 
 I notice that there isn't really any evidence for spatial dependency if you take into account the distribution of flowers on the landscape. The bees appear to be randomly distributed among the flowers. 
 
+$\color{red}{\text{There was a bug in your code above which is why your variogram looked so wonky. I fixed it. Good job overall. +3.5}}$
+
+
 # Challenge 6 (3 points)
 
 What is your assessment regarding the distribution of bee abundance in this study area? Does it exhibit spatial dependence, and if so, what is driving that pattern?
 
 So, it does appear (without taking anything into account) that there is spatial dependence among the bees in the landscape. However, in challenge 5, we took into account the distribution of flowers in the landscape. Upon doing so, we found out that the distribution of bees (when taking flowers into account) is not significantly different from random, thus there is no spatial dependence. Flowers appear to be driving the bee distribution pattern and this can be accounted for as we showed in challenge 5. 
+
+$\color{red}{\text{Technically there was spatial dependence in the bee abundance data, but it occurred because the bees were responding to the flowers, and the flowers were spatially aggregated. Good work. +3}}$
+
