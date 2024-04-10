@@ -117,7 +117,7 @@ exp(rsfAll2$coefficients)
 ```
 It appears the exponated coefficients for the model with landscape-1 are all closer to the wi values for each respective landcover type. The model with just use~landscape had coefficient values that were chronically lower than the use~landscape-1 model. The landscape-1 model exponated coefficients were all extremely close to the calculated wi values. Thus, the predicted values from the model were pretty accurate (wi is the actual selection).
 
-# how interpretation changes??????
+
 
 
 
