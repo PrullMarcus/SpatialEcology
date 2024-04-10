@@ -145,6 +145,9 @@ What similarities and differences do you notice among these maps? What might exp
 First thing I notice right off the bat is that the envelope model and random forests are both scaled the same on the y axis. Envelope and GLM seem to predict a much stronger presence than random forests. The GLM and Random Forests methods take into account both presence and background/pseudo-absence points which might explain their differences from the envelope model. Although a simple way to look at it. Each model uses different data and/or utilizes that data in different ways, which will affect the SDM result.
 
 
+$\color{red}{\text{Good. +4}}$
+
+
 # Challenge 2 (4 points)
 
 When we fit our GLM in lab, we used background points, rather than true absence points, to represent pseudo-absences. Fit the exact same GLM model, only this time use presence and true absence data. That is, replace the background rows in the dataframe with rows that represent actual sites where surveys were completed but Varied Thrush were not detected. Once you've fit the GLM, build a new SDM from this fitted model and visually compare the prediction surface to that built based on the presence-background model. What discrepancies do you notice, and what is your intuition regarding which of these two models is more reliable?
@@ -155,7 +158,7 @@ absCovs = extract(layers, vathAbsXy)
 absCovs = data.frame(vathAbsXy, absCovs, pres=0)
 absCovs = absCovs[complete.cases(absCovs),]
 
-absCovs = absCovs %>% dplyr::select(-ID)
+# absCovs = absCovs %>% dplyr::select(-ID)
 colnames(absCovs)[1:2] = c('x', 'y')
 presAbsCovs = rbind(presCovs, absCovs)
 
@@ -171,6 +174,9 @@ plot(glmMap,main="GLM with Background Points")
 plot(glmMap2,main="GLM with Absence Points")
 ```
 At first look it appears that the GLM that utilizes the actual absence data seems more sure of where the species distribution is (or isn't). What I mean by that is the areas that are more suitable appear to be very compact before turning to almost complete white (unsuitable) outside of the chunks. The GLM with background points appears to have a lot more variability and the species distribution bleeds into most of the map area. The GLM with absence points seems to be more of a "black and white" mentality and more sure of where the species does (or doesn't) occur. Additionally, it is important to note that GLM with background points has a much lower max value on the scale when compared to the GLM with absence points. I would be more reliant on the GLM with actual absence points because it relies on hard data instead of generating random background points. 
+
+$\color{red}{\text{Nice. +4}}$
+
 
 
 # Challenge 3 (4 points)
@@ -245,6 +251,9 @@ GLM 2 = absence data
 
 The absence data glm model predicts a higher suitability value for all 4 covariates which would explain why the SDM produced from the GLM with absence data had much stronger/higher values of suitability/occupancy across the map. This does help explain the discrepancies between the two. 
 
+$\color{red}{\text{Good. +4}}$
+
+
 # Challenge 4 (4 points)
 
 Varied Thrush are considered forest-dependent, and thus one might characterize mesic forests as "habitat" for the species. Calculate the total amount of mesic forest in the study area, and the mean size of the mesic forest patches.
@@ -275,10 +284,15 @@ rfMap[rfMap>=cutoff] = 1
 #Recalculating mean patch size and total patch area
 patchAreaMean2 = lsm_c_area_mn(rfMap, directions = 8)
 patchAreaTotal2 = lsm_c_ca(rfMap, directions = 8)
+
+
 ```
 Justify your choice of your threshold value. How do the habitat amount and patch size values compare between the mesic forest approach and the SDM-based approach? In what situations might you rely on one map over the other?
 
 I chose 0.25 so I could simplify the map a little bit in a reasonable fashion instead of choosing a high value such as 0.6 which would make most of the entire map 0s. Both the mean patch area and the total area of habitat decreased when applying a threshold. The SDM based approach with a threshold may be important if you were interested in protecting highly suitable habitat for a given species that isn't limited to only one variable (mesic forest in this case). You could assign a high threshold value to visualize areas of high importance for management to protect. 
+
+$\color{red}{\text{Nice. +4}}$
+
 
 
 
@@ -406,4 +420,7 @@ ggplot(tmp, aes(x=xValue, y=value, color=name))+
   theme(panel.grid=element_blank())
 ```
 The regularization is essentially telling the model how closely to fit the distribution to the presence data that we give the model. The higher the number the more freedom it has to deviate from the presence data.
+
+$\color{red}{\text{Yes, and imporantly, it smoothes out the relationships between the covariates and the predicted values so they are not so highly tailored to the observed dataset. +3.5}}$
+
 
