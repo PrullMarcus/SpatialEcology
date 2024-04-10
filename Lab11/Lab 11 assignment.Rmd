@@ -1,0 +1,212 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Re-running code from lab as a starting point
+
+```{r, warning=F}
+require(terra)
+require(tidyterra)
+require(sf)
+require(adehabitatHR)
+require(adehabitatLT)
+require(adehabitatHS)
+require(tidyverse)
+require(survival)
+
+
+#Import landcover tif
+land = rast('https://github.com/ValenteJJ/SpatialEcology/raw/main/Week10/panther_landcover.tif')
+
+#Reclassify the landcover tif
+classification = read.table('https://raw.githubusercontent.com/ValenteJJ/SpatialEcology/main/Week10/landcover%20reclass.txt', header=T) 
+land = classify(land, classification[,c(1,3)])
+land = categories(land, value=unique(classification[,c(3,4)]))
+
+
+#Import panther locations
+panthers = st_read('/vsicurl/https://github.com/ValenteJJ/SpatialEcology/raw/main/Week10/panthers.shp') %>% 
+  mutate(CatID = as.factor(CatID))
+
+#Calculate wet forest focal statistic (5 km radius)
+wetForest = land
+values(wetForest) = 0
+wetForest[land %in% c(10,12)] = 1
+probMatrix = focalMat(wetForest, 5000, type='circle', fillNA=FALSE)
+wetFocal = focal(wetForest, probMatrix, fun='sum', na.rm=T)
+
+
+#Calculate dry forest focal statistic (5 km radius)
+dryForest = land
+values(dryForest) = 0
+dryForest[land %in% c(11, 13)] = 1
+probMatrix = focalMat(dryForest, 5000, type='circle', fillNA=FALSE)
+dryFocal = focal(dryForest, probMatrix, fun='sum', na.rm=T)
+
+#Stack together 
+layers = c(land, wetFocal, dryFocal)
+names(layers) = c('landcover', 'wetForest', 'dryForest')
+
+#Recreate our used points object
+use = terra::extract(layers, panthers) %>% 
+  data.frame() %>% 
+  mutate(CatID = as.factor(panthers$CatID)) %>% 
+  group_by(CatID, landcover) %>%
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  arrange(landcover) %>% 
+  pivot_wider(names_from = landcover, values_from = n, values_fill=0) %>% 
+  data.frame()
+row.names(use) = use$CatID
+use$CatID = NULL
+
+#Recreate our available points object for a type II design
+set.seed(8)
+randII = spatSample(land, size=1000, as.points=T)
+randIILand = data.frame(randII)
+
+availII = randIILand %>% 
+  group_by(Description2) %>% 
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  rename(landcover = Description2) %>% 
+  filter(!(is.na(landcover) | landcover=='Exotics')) %>% 
+  pivot_wider(names_from = landcover, values_from = n)
+```
+
+
+# Challenge 1 (5 points)
+
+In the lab, we estimated Manly's statistic (wi) values for a type II study design. We also fit a logistic regression for a type II study design. For this challenge, you're going to explore the relationship between wi values and beta values from a logistic regression model. Below I have recreated the analysis for producing wi values. I've also reconstructed the dataset we used for fitting the logistic regression models (allCovs).
+
+Fit a new logistic regression model where use is a function of landcover-1 (the -1 removes the intercept from the fitted model). Make sure this is the only covariate in the model. Exponentiate the coefficients from the fitted model and compare them to the wi values calculated for each landcover type. What do you notice? Explain the similarities and/or differences in how you would interpret the wi values and exponentiated coefficients.
+
+```{r}
+#Recreating the wi analysis
+selRatioII = widesII(u = use, 
+                     a = as.vector(as.matrix(availII)),
+                     avknown = F,
+                     alpha = 0.05)
+
+#Dataframe with WI values
+tmp = data.frame('category' = names(selRatioII$wi),
+                 'wi' = selRatioII$wi,
+                 'ucl' = selRatioII$ICwiupper,
+                 'lcl' = selRatioII$ICwilower) %>% 
+  arrange(desc(wi)) %>% 
+  mutate(category = factor(as.character(category), levels=category)) 
+
+
+#Recreating the dataset for logistic regression
+useCovs = terra::extract(layers, panthers) %>% 
+  select(-ID) %>% 
+  mutate(use=1)
+backCovs = terra::extract(layers, randII) %>% 
+  select(-ID) %>% 
+  mutate(use=0)
+allCovs = rbind(useCovs, backCovs) %>% 
+  filter(!(is.na(landcover) | landcover=='Exotics')) %>% 
+  mutate(landcover = as.factor(as.character(landcover)))
+
+rsfAll = glm(use ~ landcover, family=binomial(link=logit), data=allCovs)
+rsfAll2 = glm(use ~ landcover-1, family=binomial(link=logit), data=allCovs)
+
+exp(rsfAll$coefficients)
+exp(rsfAll2$coefficients)
+```
+It appears the exponated coefficients for the model with landscape-1 are all closer to the wi values for each respective landcover type. The model with just use~landscape had coefficient values that were chronically lower than the use~landscape-1 model. The landscape-1 model exponated coefficients were all extremely close to the calculated wi values. Thus, the predicted values from the model were pretty accurate (wi is the actual selection).
+
+# how interpretation changes??????
+
+
+
+# Challenge 2 (5 points)
+
+In the lab, we used the distribution of step lengths and turning angles to help us devise potential steps each individual could have taken at each point in time. Instead of step lengths, build a histogram representing the distribution of step speeds in km/hr. When and why might you choose to sample from a distribution of step speeds to calculate potential step lengths rather than drawing from the distribution of step lengths itself?
+
+```{r}
+
+# This function helps us tease out the date from the recorded DOY
+substrRight = function(x, n){
+  substr(x, nchar(x) - n+1, nchar(x))
+}
+
+#Here we're just creating a spatial object from our panthers sf object. Most of the code is dedicated to converting the DOY information to a real date.
+panthersSp = panthers %>% 
+  mutate(Juldate = as.character(Juldate)) %>% 
+  mutate(date = as.numeric(substrRight(Juldate, 3))) %>% 
+  mutate(Date = as.Date(date, origin=as.Date("2006-01-01"))) %>% 
+  mutate(Date = as.POSIXct(Date, "%Y-%m-%d", tz='')) %>% 
+  as('Spatial')
+
+#And this creates a trajectory object from the x-y coordinates and associated timestamps.
+pantherLtraj = as.ltraj(xy=coordinates(panthersSp), date=panthersSp$Date, id=panthersSp$CatID, typeII=T)
+trajDf = ld(pantherLtraj)
+trajDf
+
+trajDf$Speed=((trajDf$dist/1000)/(trajDf$dt/3600))
+hist(trajDf$Speed)
+```
+For example, speeds may be really important for a project such as what I am doing for my thesis I might be interested in how quickly fish are moving away from boat ramps. Having the time element of their movement is more important than the step length itself in that scenario, so speed must be used. 
+
+# Challenge 3 (5 points)
+
+Path straightness is a metric we can use to evaluate how tortuous of a path a tracked animal took from one point to another. We calculate straightness as the straight line distance between two points divided by the length of the path actually taken. The resulting straightness statistic takes a value between 0 and 1 where 1 indicates a straight line path and 0 represents an infinitely tortuous path.
+
+For each of the 6 panthers, calculate the straightness of the path between the first and last point recorded. To do that, first calculate the numerator for each panther as the straight-line distance between the start and end points. HINT: the coordinates for each point are in UTMs (meters from the Equator and meters from the Prime Meridian). With the x and y coordinates for two different points, you can calculate their straight-line distance using the Pythagorean theorem.
+
+Next calculate the denominator for each panther. To do this, you can simply sum all of the step distances for that particular individual.
+
+Now divide the numerator by the denominator. Which panther took the most tortuous path? Which took the least tortuous path?
+
+```{r}
+panther1 = pantherLtraj[[1]]
+tort1 = sqrt((panther1$x[1]-panther1$x[nrow(panther1)])^2+(panther1$y[1]-panther1$y[nrow(panther1)])^2)/sum(panther1$dist,na.rm=TRUE)
+
+panther2 = pantherLtraj[[2]]
+tort2 = sqrt((panther2$x[1]-panther2$x[nrow(panther2)])^2+(panther2$y[1]-panther2$y[nrow(panther2)])^2)/sum(panther2$dist,na.rm=TRUE)
+
+panther3 = pantherLtraj[[3]]
+tort3 = sqrt((panther3$x[1]-panther3$x[nrow(panther3)])^2+(panther3$y[1]-panther3$y[nrow(panther3)])^2)/sum(panther3$dist,na.rm=TRUE)
+
+panther4 = pantherLtraj[[4]]
+tort4 = sqrt((panther4$x[1]-panther4$x[nrow(panther4)])^2+(panther4$y[1]-panther4$y[nrow(panther4)])^2)/sum(panther4$dist,na.rm=TRUE)
+
+panther5 = pantherLtraj[[5]]
+tort5 = sqrt((panther5$x[1]-panther5$x[nrow(panther5)])^2+(panther5$y[1]-panther5$y[nrow(panther5)])^2)/sum(panther5$dist,na.rm=TRUE)
+
+panther6 = pantherLtraj[[6]]
+tort6 = sqrt((panther6$x[1]-panther6$x[nrow(panther6)])^2+(panther6$y[1]-panther6$y[nrow(panther6)])^2)/sum(panther6$dist,na.rm=TRUE)
+
+Tortuosity=rbind(tort1,tort2,tort3,tort4,tort5,tort6)
+```
+Panther 1 appears to have took the most tortuous path, whereas Panther 6 took the least tortuous path. 
+
+
+# Challenge 4 (5 points)
+
+For each panther, calculate the frequency with which locations were recorded as points per day. Plot path straightness as a function of frequency (there should be 6 points on this figure, one per panther). What relationship do you notice between these two variables, and why might that pattern be occurring?
+
+```{r}
+
+freq1=nrow(panther1)/as.numeric(panther1$date[nrow(panther1)]-panther1$date[1])
+
+freq2=nrow(panther2)/as.numeric(panther2$date[nrow(panther2)]-panther2$date[1])
+
+freq3=nrow(panther3)/as.numeric(panther3$date[nrow(panther3)]-panther3$date[1])
+
+freq4=nrow(panther4)/as.numeric(panther4$date[nrow(panther4)]-panther4$date[1])
+
+freq5=nrow(panther5)/as.numeric(panther5$date[nrow(panther5)]-panther5$date[1])
+
+freq6=nrow(panther6)/as.numeric(panther6$date[nrow(panther6)]-panther6$date[1])
+
+Frequency=rbind(freq1,freq2,freq3,freq4,freq5,freq6)
+Total=cbind(Frequency,Tortuosity)
+
+plot(Total[,2]~Total[,1],xlab="Points per day",ylab="Straightness")
+
+```
+It appears that there isn't really a relationship until a points per day 0.37 after which straightness drastically increases. I would expect the opposite to occur with more points per day would results in an increasing number of steps that deviate from the straightest path and thus increase tortuousity. Not exactly sure what would drive this mechanism (which is counter to what I would predict). I find it hard to evaluate this trend with only 6 panthers as a sample size.
+
