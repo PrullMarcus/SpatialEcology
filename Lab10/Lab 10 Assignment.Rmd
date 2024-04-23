@@ -143,6 +143,9 @@ homeranges
  
 No text necessary.
 
+$\color{red}{\text{Good. +4}}$
+
+
 
 # Challenge 2 (4 points)
 
@@ -156,6 +159,9 @@ boxplot(melt_dat$value~melt_dat$variable,
 ```
 
 It appears that KDE homeranges appear to be the largest (and the most variable), whereas aLoCoH homeranges appear to be the smallest. aLoCoH is likely lowest because it is breaking up the homerange into small chunks instead of large polygons like the MCP does. The kernel density tool may be the largest because it is predicting use based on how likely the animal may use an area. Thus, it may contain lots of area where locations aren't actually present, yet it will be included in the KDE homerange calculation. 
+
+$\color{red}{\text{Very nice. +4}}$
+
 
 # Challenge 3 (3 points)
 
@@ -226,9 +232,15 @@ plot(mcp100Sf$geometry,add=T)
 plot(wetForest)
 plot(mcp100Sf$geometry,add=T)
 
+WethabMcp100
+DryhabMcp100
+
 ```
 
 For panther 147, its habitat is 55% wet forest and only 12% dry forest. This is likely not indicative of the actual amount of either. Because of the way MCP are calculated, a panther may not use an area due to a barrier or something, yet, it will connect the two endpoints and include area it did not use in its homerange. 
+
+$\color{red}{\text{Good. +3}}$
+
 
 # Challenge 4 (6 points)
 
@@ -522,7 +534,13 @@ abline(h=0.12, col = "blue", lty = 2)
 
 No text needed
 
+$\color{red}{\text{Great figure. +6}}$
+
+
 # Challenge 5 (3 points)
 
 I would say that it prefers dry forest more. The proportion dry forest that it uses in its homerange is far and beyond what is actually availible to it. Meaning, it selects for and spends more time in dry forest than one would expect. The opposite is true for wet forest. It appears that it selects against wet forest compared to what is actually available to the panther (the line is below our dashed "available" line for all homerange percentages). 
+
+$\color{red}{\text{Excellent work. +3}}$
+
 
