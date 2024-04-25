@@ -1,0 +1,280 @@
+---
+title: "Spatial Ecology Final Project"
+author: "Marcus Prull"
+date: "4/11/2024"
+output: html_document
+---
+
+First I will start by loading required packages.
+```{r setup, include=FALSE}
+require(sf)
+require(raster)
+require(terra)
+require(gdistance)
+require(dplyr)
+require(lubridate)
+```
+Here is where I make the transition/cost layer from my already created Neely Henry Shapefile.
+```{r}
+  #Reading in Neely ShapeFile
+  Neely = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/NeelySHP_NAD_1983_2011.shp")
+  plot(Neely$geometry)
+
+  #First need to convert Neely shapefile into "cost" raster
+  NeelyVec=vect(Neely)
+  NeelyR=rast(NeelyVec, res=0.00004)#Running about a 4.4m grid cell (0.00004), 0.00001 would be   1.1m cells, would like to be able to get down to maybe 2 m 
+  NeelyRast=rasterize(NeelyVec,NeelyR)#value of 1 is Neely, value of NA is land
+  plot(NeelyRast)#looks correct
+
+  #Creating transition layer of Neely Thing
+  NeelyRast = raster(NeelyRast)#Converts spatraster to "raster" that can be used by transition function
+  NeelyTrans = transition(NeelyRast, transitionFunction = mean, 8)
+  
+  #Correcting for corners
+  NeelyTrans = geoCorrection(NeelyTrans, type='c', multpl=F)
+
+  #Visualizing Cost/resistance raster
+  NeelyTransRast = raster(NeelyTrans)
+  plot(NeelyTransRast)
+```
+
+Loading in my Dispersal data and specifying boat launch locations. Additionally, I filtered fish by release location.
+```{r}
+#All files are in NAD83(2011) 
+
+#Reading in fish dispersal locations
+Dispersal = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/DispersalFish_3_4_24.shp")
+
+#Filtering Data Appropriately
+DispersalFilt = Dispersal %>% group_by(RewardTag1) %>% filter(n()>1)#Filtering to only fish that have more than 1 observation
+
+#Making a proper "Date" column for use later
+Dates = make_date(year = DispersalFilt$Year, month = DispersalFilt$Month, day = DispersalFilt$Day)
+DispersalFilt = cbind(Dates,DispersalFilt)
+colnames(DispersalFilt)[1]<-"Date"    #Renaming date column to "Date"
+
+#Confirming that points show up in shapefile
+plot(Neely$geometry)
+plot(Dispersal,add=T)
+
+#Reading in boat launch/release location .shp files
+CL = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/CL.shp")
+SS = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/SS.shp")
+RL = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/RL.shp")
+CC = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/CC.shp")
+
+#Sorting my fish by release location
+CL_Fish = subset(Dispersal,Ramp=="CL")
+SS_Fish = subset(Dispersal,Ramp=="SS")
+RL_Fish = subset(Dispersal,Ramp=="RL")
+CC_Fish = subset(Dispersal,Ramp=="CC")
+```
+
+Here I will actually calculate least cost distance for individuals dispersing from tournament boat ramps. The least cost distance will be indicative of the individuals proximity from the ramp. 
+```{r}
+#### COOSA LANDING PROXIMITY ####
+CL_prox_m = numeric(nrow(CL_Fish))
+
+for (i in 1:nrow(CL_Fish)){
+  
+  CL_prox_m[i] = gdistance::costDistance(NeelyTrans, fromCoords = sf::st_coordinates(CL), 
+                            toCoords = sf::st_coordinates(CL_Fish[i,]))
+      }
+    
+    
+CL_distances = cbind(CL_prox_m,CL_Fish)
+    
+
+
+#### RAINBOW LANDING PROXIMITY ####
+RL_prox_m = numeric(nrow(RL_Fish))
+
+for (i in 1:nrow(RL_Fish)){
+  
+  RL_prox_m[i] = gdistance::costDistance(NeelyTrans, fromCoords = sf::st_coordinates(RL), 
+                            toCoords = sf::st_coordinates(RL_Fish[i,]))
+      }
+    
+    
+RL_distances = cbind(RL_prox_m,RL_Fish)
+
+
+
+#### SOUTHSIDE LANDING PROXIMITY ####
+SS_prox_m = numeric(nrow(SS_Fish))
+
+for (i in 1:nrow(SS_Fish)){
+  
+  SS_prox_m[i] = gdistance::costDistance(NeelyTrans, fromCoords = sf::st_coordinates(SS), 
+                            toCoords = sf::st_coordinates(SS_Fish[i,]))
+      }
+    
+    
+SS_distances = cbind(SS_prox_m,SS_Fish)
+
+
+
+#### CANOE CREEK PROXIMITY ####
+CC_prox_m = numeric(nrow(CC_Fish))
+
+for (i in 1:nrow(CC_Fish)){
+  
+  CC_prox_m[i] = gdistance::costDistance(NeelyTrans, fromCoords = sf::st_coordinates(CC), 
+                            toCoords = sf::st_coordinates(CC_Fish[i,]))
+      }
+    
+    
+CC_distances = cbind(CC_prox_m,CC_Fish)
+
+CL_proximities = CL_distances
+
+write.csv(CL_proximities,"C:/Users/mrp0099/Desktop/MarcusStuff/SpatialEcology/CL_proximities.csv")
+```
+
+Now I will add the speed element in m/d or m/w. This will look at how their movement speeds/step length distances may change after they are released from a boat launch. To do this, I will calculate least cost distance between successive locations for each individual fish. Then, I will need to slice the first row of data and calculate days post release. For each individual. I should just be able to do this for all fish at once, instead of separating by boat launch like I did in the previous part. 
+
+```{r}
+#Creating new objects to be used in loop
+tag_numbers = unique(DispersalFilt$RewardTag1)#unique tag numbers
+n_fish = length(tag_numbers)#number of fish total
+
+#Creating vectors for output to be stored in 
+output = numeric()
+outputDays = numeric()
+
+#Outside loop that selects tag-number 
+for(i in 1:n_fish){
+  
+  new_tag = tag_numbers[i]
+  new_dat = subset(DispersalFilt,RewardTag1 == new_tag)
+  tmax = nrow(new_dat)
+  DispersalDist = numeric(tmax)
+  days = numeric(tmax)
+  
+#Inside loops over time for a given tag-number  
+  for(t in 2:tmax){
+    
+    dist_m = gdistance::costDistance(NeelyTrans, fromCoords = sf::st_coordinates(new_dat[t-1,]), 
+                                                 toCoords = sf:: st_coordinates(new_dat[t,]))
+    DispersalDist[t] = dist_m
+    days[t] = as.numeric(new_dat$Date[t]-new_dat$Date[t-1])
+    
+  }
+  output = append(output,DispersalDist)
+  outputDays = append(outputDays,days)
+}
+output
+outputDays
+
+#Adding distances to new "DispersalMovement" dataframe
+DispersalMovement = cbind(output,DispersalFilt)
+colnames(DispersalMovement)[1]<-"MetersFromLastLocation"
+names(DispersalMovement)
+
+#Adding days post release to the "DispersalMovement" dataframe
+DispersalMovement = cbind(outputDays,DispersalMovement)
+colnames(DispersalMovement)[1]<-"DaysElapsed"
+names(DispersalMovement)
+
+FinalDispersalMovement = DispersalMovement %>% group_by(RewardTag1) %>% slice(2:n())
+
+FinalDispersalMovement$WeeksElapsed = FinalDispersalMovement$DaysElapsed/7
+
+FinalDispersalMovement$MetersPerDay = FinalDispersalMovement$MetersFromLastLocation/FinalDispersalMovement$DaysElapsed
+
+FinalDispersalMovement$MetersPerWeek = FinalDispersalMovement$MetersFromLastLocation/FinalDispersalMovement$WeeksElapsed
+
+Dispersal_Speeds=as.data.frame(FinalDispersalMovement)
+
+write.csv(Dispersal_Speeds,"C:/Users/mrp0099/Desktop/MarcusStuff/SpatialEcology/Dispersal_Speeds.csv")
+```
+
+Here I am doing the same thing for the control fish 
+```{r}
+Control = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/ControlFish_3_4_24.shp")
+
+ControlFilt = Control %>% group_by(RewardTag1) %>% filter(n()>2)#Filtering to only fish that have more than 3 observations or more
+
+#Converting year month day columns into date column to be used for elapsed time (get movement/time rates)
+Dates = make_date(year = ControlFilt$Year, month = ControlFilt$Month, day = ControlFilt$Day)
+ControlFilt = cbind(Dates,ControlFilt)
+colnames(ControlFilt)[1]<-"Date"    #Renaming date column to "Date"
+
+#Creating objects to be used by loop
+tag_numbers = unique(ControlFilt$RewardTag1)#unique tag numbers
+n_fish = length(tag_numbers)#number of fish total
+
+#Creating output vectors
+output2=numeric()
+outputDays2=numeric()
+
+#Outside loop that selects tag-number 
+for(i in 1:n_fish){
+  
+  new_tag = tag_numbers[i]
+  new_dat = subset(ControlFilt,RewardTag1 == new_tag)
+  tmax = nrow(new_dat)
+  ControlDist = numeric(tmax)
+  days = numeric(tmax)
+  
+  for(t in 2:tmax){
+    
+    dist_m = gdistance::costDistance(NeelyTrans, fromCoords = sf::st_coordinates(new_dat[t-1,]), 
+                                                 toCoords = sf:: st_coordinates(new_dat[t,]))
+    ControlDist[t] = dist_m
+    days[t] = as.numeric(new_dat$Date[t]-new_dat$Date[t-1])
+    
+  }
+  output2 = append(output2,ControlDist)
+  outputDays2 = append(outputDays2,days)
+}
+output2#spit out some infinities????? Neely shapefile not encompassing enough?????
+outputDays2
+
+n=nrow(ControlFilt)
+ControlFilt2 = ControlFilt[1:918,]#6 rows at end of dataframe were empty
+
+ControlMovement = cbind(output2,ControlFilt2)
+colnames(ControlMovement)[1]<-"MetersFromLastLocation"
+names(ControlMovement)
+
+ControlMovement = cbind(outputDays2,ControlMovement)
+colnames(ControlMovement)[1]<-"DaysElapsed"
+names(ControlMovement)
+
+FinalControlMovement = ControlMovement %>% group_by(RewardTag1) %>% slice(3:n())
+
+FinalControlMovement$WeeksElapsed = FinalControlMovement$DaysElapsed/7
+
+FinalControlMovement$MetersPerDay = FinalControlMovement$MetersFromLastLocation/FinalControlMovement$DaysElapsed
+
+FinalControlMovement$MetersPerWeek = FinalControlMovement$MetersFromLastLocation/FinalControlMovement$WeeksElapsed
+
+Control_Speeds = as.data.frame(FinalControlMovement)
+write.csv(Control_Speeds,"C:/Users/mrp0099/Desktop/MarcusStuff/SpatialEcology/Control_Speeds.csv")
+```
+
+```{r}
+
+#Round to nearest week and then look at how average movement speed differs over time for dispersed indivuals. 
+#Compare this to control individuals for both species. 
+#Construct homeranges
+#Step-selection model to assess efficiency of individuals dispersing. 
+
+```
+
+
+
+
+
+Here I will attempt to construct homeranges for fish in my system. (Kernel Density) 
+```{r}
+
+
+
+```
+
+
+
+
+
