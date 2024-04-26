@@ -13,6 +13,7 @@ require(terra)
 require(gdistance)
 require(dplyr)
 require(lubridate)
+require(ggplot2)
 ```
 Here is where I make the transition/cost layer from my already created Neely Henry Shapefile.
 ```{r}
@@ -22,7 +23,7 @@ Here is where I make the transition/cost layer from my already created Neely Hen
 
   #First need to convert Neely shapefile into "cost" raster
   NeelyVec=vect(Neely)
-  NeelyR=rast(NeelyVec, res=0.00004)#Running about a 4.4m grid cell (0.00004), 0.00001 would be   1.1m cells, would like to be able to get down to maybe 2 m 
+  NeelyR=rast(NeelyVec, res=0.00004)#00005 = 5.5 m cell. Running about a 4.4m grid cell (0.00004), 0.00001 would be      1.1m cells, would like to be able to get down to maybe 2 m 
   NeelyRast=rasterize(NeelyVec,NeelyR)#value of 1 is Neely, value of NA is land
   plot(NeelyRast)#looks correct
 
@@ -37,16 +38,33 @@ Here is where I make the transition/cost layer from my already created Neely Hen
   NeelyTransRast = raster(NeelyTrans)
   plot(NeelyTransRast)
 ```
+Reading in updated Dispersal data with GroupMort Column to sort by Alive vs Dead fish.
+```{r}
+Dispersal_raw = "https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/DispersalFishONLY.csv"
+Dispersal_raw = read.csv(Dispersal_raw)
+Dispersal_raw = subset(Dispersal_raw,GroupMovement=="A")#Gets rid of dead fish for my analysis
 
-Loading in my Dispersal data and specifying boat launch locations. Additionally, I filtered fish by release location.
+#Now I need to convert my lat longs into spatial points objects with the correct projection
+Dispersal_sf = st_as_sf(Dispersal_raw, coords = c("Long","Lat"))
+
+#Defining its coordinate system
+CoordSys = st_crs(Neely)#Retrieving CS from Neely Shapefile (Should be the same as these points)
+Dispersal_sf = st_set_crs(Dispersal_sf, CoordSys)#Setting it to the right coord system.
+
+#Plotting to make sure it shows up in the right spot
+plot(Neely$geometry)
+plot(Dispersal_sf, add = T)#Looks good to me
+```
+
+Filtering Data, and then loading in boat launch locations
 ```{r}
 #All files are in NAD83(2011) 
 
-#Reading in fish dispersal locations
-Dispersal = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/DispersalFish_3_4_24.shp")
-
 #Filtering Data Appropriately
-DispersalFilt = Dispersal %>% group_by(RewardTag1) %>% filter(n()>1)#Filtering to only fish that have more than 1 observation
+DispersalFilt = Dispersal_sf %>% group_by(RewardTag1) %>% filter(n()>1)#Filtering to only fish that have more than 1 observation
+
+#Checking to make sure no points fall outside polygon
+as.integer(st_intersects(DispersalFilt,Neely))#all values gave me a 1 (all inside polygon)
 
 #Making a proper "Date" column for use later
 Dates = make_date(year = DispersalFilt$Year, month = DispersalFilt$Month, day = DispersalFilt$Day)
@@ -54,8 +72,10 @@ DispersalFilt = cbind(Dates,DispersalFilt)
 colnames(DispersalFilt)[1]<-"Date"    #Renaming date column to "Date"
 
 #Confirming that points show up in shapefile
-plot(Neely$geometry)
-plot(Dispersal,add=T)
+plot(NeelyRast)
+plot(DispersalFilt,add=T)
+
+extract(raster(NeelyRast),Dispersal_raw)
 
 #Reading in boat launch/release location .shp files
 CL = st_read("/vsicurl/https://github.com/PrullMarcus/SpatialEcology/raw/main/FinalProject/CL.shp")
@@ -185,8 +205,6 @@ FinalDispersalMovement$MetersPerDay = FinalDispersalMovement$MetersFromLastLocat
 FinalDispersalMovement$MetersPerWeek = FinalDispersalMovement$MetersFromLastLocation/FinalDispersalMovement$WeeksElapsed
 
 Dispersal_Speeds=as.data.frame(FinalDispersalMovement)
-
-write.csv(Dispersal_Speeds,"C:/Users/mrp0099/Desktop/MarcusStuff/SpatialEcology/Dispersal_Speeds.csv")
 ```
 
 Here I am doing the same thing for the control fish 
@@ -263,10 +281,6 @@ write.csv(Control_Speeds,"C:/Users/mrp0099/Desktop/MarcusStuff/SpatialEcology/Co
 
 ```
 
-
-
-
-
 Here I will attempt to construct homeranges for fish in my system. (Kernel Density) 
 ```{r}
 
@@ -274,7 +288,93 @@ Here I will attempt to construct homeranges for fish in my system. (Kernel Densi
 
 ```
 
+Here I will create a plot of average proximity to the ramp over time
+```{r}
+#Average Dispersal Proxmity over time (of alive fish)
+CL_Dispersals = read.csv("CL_proximities.csv")#fix this to github
+CL_Disp_Alives = subset(CL_Dispersals,MortGroup == "A")
+CL_Disp_Alives = CL_Disp_Alives %>% group_by(RewardTag1) %>% filter(n()>1)
+
+Dates = make_date(year = CL_Disp_Alives$Year, month = CL_Disp_Alives$Month, day = CL_Disp_Alives$Day)
+CL_Disp_Alives = cbind(Dates,CL_Disp_Alives)
+colnames(CL_Disp_Alives)[1]<-"Date"    #Renaming date column to "Date"
+
+tag_numbers = unique(CL_Disp_Alives$RewardTag1)#unique tag numbers
+n_fish = length(tag_numbers)#number of fish total
+
+outputDays2 = numeric()
+for(i in 1:n_fish){
+  
+  new_tag = tag_numbers[i]
+  new_dat = subset(CL_Disp_Alives,RewardTag1 == new_tag)
+  tmax = nrow(new_dat)
+  days = numeric(tmax)
+  
+  for(t in 2:tmax){
+    
+    days[t] = as.numeric(new_dat$Date[t]-new_dat$Date[1])
+    
+  }
+  outputDays2 = append(outputDays2,days)
+}
+outputDays2
+CL_Disp_Alives=cbind(outputDays2,CL_Disp_Alives)
+colnames(CL_Disp_Alives)[1]<-"DaysElapsed"
+CL_Disp_Alives$WeeksElapsed=CL_Disp_Alives$DaysElapsed/7
+CL_Disp_Alives$RoundedWeek=ceiling(CL_Disp_Alives$WeeksElapsed)
+
+CL_Disp_Alives$RoundedWeek=as.factor(CL_Disp_Alives$RoundedWeek)
+CL_Disp_Alives$Species=as.factor(CL_Disp_Alives$Species)
+
+plot(CL_Disp_Alives$CL_prox_m~CL_Disp_Alives$RoundedWeek*CL_Disp_Alives$Species)
+
+
+ggplot(CL_Disp_Alives,aes(x = as.factor(RoundedWeek),y = CL_prox_m))+
+  geom_boxplot(aes(fill=Species))+
+  coord_cartesian(xlim=c(0,17),ylim=c(0,15000))+
+  labs(x = "Rounded Week Since Release", y = "Least Cost Distance From Ramp (m)")
+
+r1<-with(CL_Disp_Alives, tapply(CL_prox_m, RoundedWeek, mean))
+plot(r1,type="l",ylab="Mean Distance From CL",xlab="Weeks Post-Release",xlim=c(0,16))
+abline(v=3,col="red",lty=2)
+```
+
+Here I will look at movement speeds of Dispersal Fish
+```{r}
+
+Dispersal_Speeds=read.csv("Dispersal_Speeds.csv")
+Dispersal_Speeds$MetersPerDay=Dispersal_Speeds$MetersFromLastLocation/Dispersal_Speeds$DaysElapsed
+Dispersal_Speeds$WeeksElapsed=Dispersal_Speeds$DaysElapsed/7
+Dispersal_Speeds$MetersPerWeek=Dispersal_Speeds$MetersFromLastLocation/Dispersal_Speeds$WeeksElapsed
+
+
+Dates = make_date(year = Dispersal_Speeds$Year, month = Dispersal_Speeds$Month, day = Dispersal_Speeds$Day)
+Dispersal_Speeds = cbind(Dates,Dispersal_Speeds)
+colnames(Dispersal_Speeds)[1]<-"Date"    #Renaming date column to "Date"
+
+
+tag_numbers = unique(Dispersal_Speeds$RewardTag1)#unique tag numbers
+n_fish = length(tag_numbers)#number of fish total
+
+outputDays2 = numeric()
+for(i in 1:n_fish){
+  
+  new_tag = tag_numbers[i]
+  new_dat = subset(Dispersal_Speeds,RewardTag1 == new_tag)
+  tmax = nrow(new_dat)
+  days = numeric(tmax)
+  
+  for(t in 2:tmax){
+    
+    days[t] = as.numeric(new_dat$Date[t]-new_dat$Date[1])
+    
+  }
+  outputDays2 = append(outputDays2,days)
+}
+outputDays2
+Dispersal_Speeds=cbind(outputDays2,Dispersal_Speeds)
+colnames(Dispersal_Speeds)[1]<-"DaysPostRelease"
 
 
 
-
+```
