@@ -118,7 +118,7 @@ exp(rsfAll2$coefficients)
 It appears the exponated coefficients for the model with landscape-1 are all closer to the wi values for each respective landcover type. The model with just use~landscape had coefficient values that were chronically lower than the use~landscape-1 model. The landscape-1 model exponated coefficients were all extremely close to the calculated wi values. Thus, the predicted values from the model were pretty accurate (wi is the actual selection).
 
 
-
+$\color{red}{\text{Good. Basically, the exponentiated beta coefficients represent the odds ratios for the various cover types (i.e., the odds a point in that category is used divided by the odds is is not used). This is the same way that wi is calculated. The only difference here is that we're now including a random effect to account for non-independence among points selected by the same panther. +4.5}}$
 
 
 # Challenge 2 (5 points)
@@ -149,6 +149,8 @@ trajDf$Speed=((trajDf$dist/1000)/(trajDf$dt/3600))
 hist(trajDf$Speed)
 ```
 For example, speeds may be really important for a project such as what I am doing for my thesis I might be interested in how quickly fish are moving away from boat ramps. Having the time element of their movement is more important than the step length itself in that scenario, so speed must be used. 
+
+$\color{red}{\text{True, although I wanted to year you comment on the fact that step speed distributions will be better for generating potential steps in situations where fixes are not constant in time. +4}}$
 
 # Challenge 3 (5 points)
 
@@ -210,3 +212,4 @@ plot(Total[,2]~Total[,1],xlab="Points per day",ylab="Straightness")
 ```
 It appears that there isn't really a relationship until a points per day 0.37 after which straightness drastically increases. I would expect the opposite to occur with more points per day would results in an increasing number of steps that deviate from the straightest path and thus increase tortuousity. Not exactly sure what would drive this mechanism (which is counter to what I would predict). I find it hard to evaluate this trend with only 6 panthers as a sample size.
 
+$\color{red}{\text{Yeah, good enough. The answer to this question turned out to be wonky. +5}}$
